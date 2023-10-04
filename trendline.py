@@ -1,8 +1,3 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-
 def check_trend_line(support: bool, pivot: int, slope: float, y: np.array):
     # compute sum of differences between line and prices, 
     # return negative val if invalid 
