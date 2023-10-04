@@ -1,6 +1,7 @@
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 def check_trend_line(support: bool, pivot: int, slope: float, y: np.array):
     # compute sum of differences between line and prices, 
@@ -21,6 +22,7 @@ def check_trend_line(support: bool, pivot: int, slope: float, y: np.array):
     # Squared sum of diffs between data and line 
     err = (diffs ** 2.0).sum()
     return err;
+
 
 def optimize_slope(support: bool, pivot:int , init_slope: float, y: np.array):
     
@@ -97,7 +99,9 @@ def fit_trendlines_single(data: np.array):
     support_coefs = optimize_slope(True, lower_pivot, coefs[0], data)
     resist_coefs = optimize_slope(False, upper_pivot, coefs[0], data)
 
-    return (support_coefs, resist_coefs)
+    return (support_coefs, resist_coefs) 
+
+
 
 def fit_trendlines_high_low(high: np.array, low: np.array, close: np.array):
     x = np.arange(len(close))
@@ -112,19 +116,15 @@ def fit_trendlines_high_low(high: np.array, low: np.array, close: np.array):
 
     return (support_coefs, resist_coefs)
 
-# Load your dataset
-df = pd.read_csv('data/PTBA.csv')
 
-# Convert the "Date" column to a datetime object
-df['Date'] = df['Date'].astype('datetime64[s]')
-data = df.set_index('Date')
 
-# Filter data for the last 1 year
-# one_year_ago = df['Date'].max() - pd.DateOffset(years=1)
-# filtered_df = df[df['Date'] >= one_year_ago]
+# Load data
+data = pd.read_csv('BTCUSDT86400.csv')
+data['date'] = data['date'].astype('datetime64[s]')
+data = data.set_index('date')
 
+# Take natural log of data to resolve price scaling issues
 data = np.log(data)
-
 # Trendline parameter
 lookback = 30
 
@@ -133,9 +133,9 @@ support_slope = [np.nan] * len(data)
 resist_slope = [np.nan] * len(data)
 for i in range(lookback - 1, len(data)):
     candles = data.iloc[i - lookback + 1: i + 1]
-    support_coefs, resist_coefs =  fit_trendlines_high_low(candles['High'], 
-                                                           candles['Low'], 
-                                                           candles['Close'])
+    support_coefs, resist_coefs =  fit_trendlines_high_low(candles['high'], 
+                                                           candles['low'], 
+                                                           candles['close'])
     support_slope[i] = support_coefs[0]
     resist_slope[i] = resist_coefs[0]
 
@@ -145,24 +145,59 @@ data['resist_slope'] = resist_slope
 plt.style.use('dark_background')
 fig, ax1 = plt.subplots()
 ax2 = ax1.twinx()
-data['Close'].plot(ax=ax1)
+data['close'].plot(ax=ax1)
 data['support_slope'].plot(ax=ax2, label='Support Slope', color='green')
 data['resist_slope'].plot(ax=ax2, label='Resistance Slope', color='red')
-plt.title("Trend Line PTBA")
+plt.title("Trend Line Slopes BTC-USDT Daily")
 plt.legend()
 plt.show()
-# Create a line plot of closing prices over the last 1 year
-# plt.figure(figsize=(12, 6))  # Adjust the figure size as needed
 
-# # Create the connecting line plot
-# plt.plot(filtered_df['Date'], filtered_df['Close'], marker='o', linestyle='-', color='orange', markersize=5, label='Connecting Lines')
 
-# plt.xlabel('Date')
-# plt.ylabel('Closing Price')
-# plt.title('Closing Prices Over the Last 1 Year with Connecting Lines')
-# plt.xticks(rotation=45)  # Rotate x-axis labels for better readability if needed
-# plt.legend()  # Add a legend to the plot
 
-# # Show the plot
-# plt.tight_layout()  # Ensure that labels fit within the figure
-# plt.show()
+
+
+
+
+
+
+
+
+'''
+# Plot Trendlines on candles 
+# Library for plotting candles
+# pip install mplfinance
+import mplfinance as mpf 
+
+
+
+candles = data.iloc[-30:] # Last 30 candles in data
+support_coefs_c, resist_coefs_c = fit_trendlines_single(candles['close'])
+support_coefs, resist_coefs = fit_trendlines_high_low(candles['high'], candles['low'], candles['close'])
+
+support_line_c = support_coefs_c[0] * np.arange(len(candles)) + support_coefs_c[1]
+resist_line_c = resist_coefs_c[0] * np.arange(len(candles)) + resist_coefs_c[1]
+
+support_line = support_coefs[0] * np.arange(len(candles)) + support_coefs[1]
+resist_line = resist_coefs[0] * np.arange(len(candles)) + resist_coefs[1]
+
+plt.style.use('dark_background')
+ax = plt.gca()
+
+def get_line_points(candles, line_points):
+    # Place line points in tuples for matplotlib finance
+    # https://github.com/matplotlib/mplfinance/blob/master/examples/using_lines.ipynb
+    idx = candles.index
+    line_i = len(candles) - len(line_points)
+    assert(line_i >= 0)
+    points = []
+    for i in range(line_i, len(candles)):
+        points.append((idx[i], line_points[i - line_i]))
+    return points
+
+s_seq = get_line_points(candles, support_line)
+r_seq = get_line_points(candles, resist_line)
+s_seq2 = get_line_points(candles, support_line_c)
+r_seq2 = get_line_points(candles, resist_line_c)
+mpf.plot(candles, alines=dict(alines=[s_seq, r_seq, s_seq2, r_seq2], colors=['w', 'w', 'b', 'b']), type='candle', style='charles', ax=ax)
+plt.show()
+'''
